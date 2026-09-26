@@ -2,6 +2,7 @@
 node_modules/
 mobileapplication/CampusConnectMobile/dist/
 mobileapplication/CampusConnectMobile/.expo/
+mobileapplication/.expo/
 
 # Local Firebase and environment output
 **/firebase-debug.log
