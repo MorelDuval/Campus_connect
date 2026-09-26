@@ -76,6 +76,14 @@ service cloud.firestore {
         (isLecturer() && resource.data.lecturerId == request.auth.uid);
     }
 
+    match /mcqs/{mcqId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() ||
+        (isLecturer() && request.resource.data.createdBy == request.auth.uid && ownsCourse(request.resource.data.courseId));
+      allow update, delete: if isAdmin() ||
+        (isLecturer() && resource.data.createdBy == request.auth.uid);
+    }
+
     match /enrollments/{enrollmentId} {
       allow read: if isAdmin() || isLecturer() ||
         (signedIn() && resource.data.studentId == request.auth.uid);

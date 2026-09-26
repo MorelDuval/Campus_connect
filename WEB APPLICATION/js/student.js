@@ -961,6 +961,7 @@ async function loadAssignmentsPage(container) {
                                 </div>
                             </div>
                             <p class="assignment-description">${safeDescription}</p>
+                            ${assignment.attachmentUrl ? `<a class="btn btn-sm btn-outline" href="${escapeHtmlAttribute(assignment.attachmentUrl)}" target="_blank" rel="noopener"><i class="fas fa-paperclip"></i> ${escapeHtml(assignment.attachmentName || 'Open attachment')}</a>` : ''}
                             <div class="assignment-meta">
                                 <span><i class="fas fa-calendar"></i> Due: ${formatDate(deadlineDate)}</span>
                                 <span><i class="fas fa-clock"></i> ${daysLeft} days left</span>

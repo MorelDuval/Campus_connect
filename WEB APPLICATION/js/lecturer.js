@@ -80,6 +80,7 @@ async function loadLecturerPage(page) {
             case 'courses': await loadMyCourses(contentArea); break;
             case 'grades': await loadGradeEntry(contentArea); break;
             case 'assignments': await loadLecturerAssignments(contentArea); break;
+            case 'mcqs': await loadLecturerMcqs(contentArea); break;
             case 'attendance': await loadAttendancePage(contentArea); break;
             case 'students': await loadStudentList(contentArea); break;
             case 'announcements': await loadLecturerAnnouncements(contentArea); break;
@@ -394,6 +395,10 @@ async function loadLecturerAssignments(container) {
                     <label for="assignmentDescription">Instructions *</label>
                     <textarea id="assignmentDescription" class="form-textarea" rows="5" required maxlength="2000" placeholder="Explain the task, format, and marking expectations."></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="assignmentFile">Attachment (optional, max 25 MB)</label>
+                    <input type="file" id="assignmentFile" class="form-input" accept=".pdf,.doc,.docx,.zip">
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Publish Assignment</button>
                     <button type="button" class="btn btn-outline" onclick="hideCreateAssignmentForm()">Cancel</button>
@@ -439,6 +444,7 @@ function setupAssignmentForm() {
         const title = document.getElementById('assignmentTitle').value.trim();
         const description = document.getElementById('assignmentDescription').value.trim();
         const dueDate = document.getElementById('assignmentDueDate').value;
+        const attachment = document.getElementById('assignmentFile').files[0];
         if (!courseId || !title || !description || !dueDate) return showNotification('Complete all assignment fields.', 'warning');
 
         try {
@@ -449,20 +455,39 @@ function setupAssignmentForm() {
                 .where('courseId', '==', courseId).where('status', '==', 'active').get();
             if (enrollments.empty) return showNotification('No active students are enrolled in this course.', 'warning');
 
-            const batch = db.batch();
-            enrollments.docs.forEach(enrollment => {
+            let attachmentUrl = '';
+            let attachmentName = '';
+            if (attachment) {
+                if (!storage || attachment.size > 25 * 1024 * 1024) return showNotification('Attachment must be 25 MB or smaller.', 'warning');
+                const assignmentUploadRef = storage.ref().child(`assignments/lecturers/${auth.currentUser.uid}/${Date.now()}-${attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+                await assignmentUploadRef.put(attachment);
+                attachmentUrl = await assignmentUploadRef.getDownloadURL();
+                attachmentName = attachment.name;
+            }
+            let batch = db.batch();
+            let writes = 0;
+            let assigned = 0;
+            for (const enrollment of enrollments.docs) {
                 const studentId = enrollment.data().studentId;
-                if (!studentId) return;
+                if (!studentId) continue;
                 const assignmentRef = db.collection('assignments').doc();
                 batch.set(assignmentRef, {
                     studentId, courseId, courseCode: course.code || '', courseName: course.name || '',
                     title, description, dueDate: firebase.firestore.Timestamp.fromDate(new Date(dueDate)),
-                    lecturerId: localStorage.getItem('userId'), lecturerName: localStorage.getItem('userName'),
+                    lecturerId: auth.currentUser.uid, lecturerName: localStorage.getItem('userName'),
+                    attachmentUrl, attachmentName,
                     status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-            });
-            await batch.commit();
-            showNotification(`Assignment published to ${enrollments.size} students.`, 'success');
+                writes++;
+                assigned++;
+                if (writes === 450) {
+                    await batch.commit();
+                    batch = db.batch();
+                    writes = 0;
+                }
+            }
+            if (writes) await batch.commit();
+            showNotification(`Assignment published to ${assigned} students.`, 'success');
             setTimeout(() => loadLecturerPage('assignments'), 500);
         } catch (error) {
             console.error('Error publishing assignment:', error);
@@ -471,15 +496,57 @@ function setupAssignmentForm() {
     });
 }
 
+// ===================== MCQ BANK =====================
+async function loadLecturerMcqs(container) {
+    const userId = auth.currentUser?.uid;
+    const coursesSnapshot = await db.collection('courses').where('lecturerId', '==', userId).get();
+    const mcqsSnapshot = await db.collection('mcqs').where('createdBy', '==', userId).get();
+    container.innerHTML = `
+        <div class="page-header">
+            <div><h1>MCQ Bank</h1><p class="text-muted">Create reusable multiple-choice questions for your courses.</p></div>
+            <button class="btn btn-primary" onclick="showCreateMcqForm()"><i class="fas fa-plus"></i> New MCQ</button>
+        </div>
+        <div class="section" id="createMcqForm" style="display:none">
+            <h2>Create MCQ</h2>
+            <form id="mcqForm">
+                <div class="form-group"><label for="mcqCourse">Course *</label><select id="mcqCourse" class="form-select" required><option value="">Select course</option>${coursesSnapshot.docs.map(doc => `<option value="${doc.id}">${escapeHtml(doc.data().code)} - ${escapeHtml(doc.data().name)}</option>`).join('')}</select></div>
+                <div class="form-group"><label for="mcqQuestion">Question *</label><textarea id="mcqQuestion" class="form-textarea" rows="3" required maxlength="500"></textarea></div>
+                <div class="grid-2">${[0, 1, 2, 3].map(index => `<div class="form-group"><label for="mcqOption${index}">Option ${String.fromCharCode(65 + index)} *</label><input id="mcqOption${index}" class="form-input" required maxlength="200"></div>`).join('')}</div>
+                <div class="form-group"><label for="mcqAnswer">Correct answer</label><select id="mcqAnswer" class="form-select"><option value="0">Option A</option><option value="1">Option B</option><option value="2">Option C</option><option value="3">Option D</option></select></div>
+                <div class="form-actions"><button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> Save MCQ</button><button class="btn btn-outline" type="button" onclick="hideCreateMcqForm()">Cancel</button></div>
+            </form>
+        </div>
+        <div class="section"><h2>My Questions</h2><div class="mcq-list">${mcqsSnapshot.empty ? '<p class="text-muted">No questions created yet.</p>' : mcqsSnapshot.docs.map(doc => { const q = doc.data(); return `<article class="mcq-card"><span class="course-badge">${escapeHtml(q.courseCode || 'Course')}</span><h3>${escapeHtml(q.question)}</h3><ol>${(q.options || []).map(option => `<li>${escapeHtml(option)}</li>`).join('')}</ol><p class="text-muted">Correct answer: Option ${String.fromCharCode(65 + Number(q.correctIndex || 0))}</p></article>`; }).join('')}</div></div>`;
+    document.getElementById('mcqForm')?.addEventListener('submit', createMcq);
+}
+
+function showCreateMcqForm() { document.getElementById('createMcqForm')?.style.setProperty('display', 'block'); }
+function hideCreateMcqForm() { document.getElementById('createMcqForm')?.style.setProperty('display', 'none'); }
+
+async function createMcq(event) {
+    event.preventDefault();
+    const courseId = document.getElementById('mcqCourse').value;
+    const courseDoc = await db.collection('courses').doc(courseId).get();
+    const course = courseDoc.data() || {};
+    const options = [0, 1, 2, 3].map(index => document.getElementById(`mcqOption${index}`).value.trim());
+    await db.collection('mcqs').add({ courseId, courseCode: course.code || '', question: document.getElementById('mcqQuestion').value.trim(), options, correctIndex: Number(document.getElementById('mcqAnswer').value), createdBy: auth.currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    showNotification('MCQ saved successfully.', 'success');
+    setTimeout(() => loadLecturerPage('mcqs'), 400);
+}
+
 // Save grades
 async function saveGrades(courseId, assessmentType) {
     const inputs = document.querySelectorAll('.grade-input');
     let saved = 0;
+    const courseDoc = await db.collection('courses').doc(courseId).get();
+    const course = courseDoc.exists ? courseDoc.data() : {};
     
     for (const input of inputs) {
         const studentId = input.getAttribute('data-student-id');
-        const score = parseInt(input.value) || 0;
-        if (score === 0) continue;
+        if (input.value === '') continue;
+        const score = Number(input.value);
+        const maxScore = assessmentType === 'ca' ? 40 : 60;
+        if (!Number.isFinite(score) || score < 0 || score > maxScore) continue;
         
         const existing = await db.collection('grades')
             .where('studentId', '==', studentId)
@@ -488,19 +555,14 @@ async function saveGrades(courseId, assessmentType) {
         const data = {
                 studentId, courseId,
             [assessmentType === 'ca' ? 'caScore' : 'examScore']: score,
-            semester: '2024-Spring'
+            semester: `${getCurrentSemester()} ${new Date().getFullYear()}`,
+            courseCode: course.code || '',
+            courseName: course.name || '',
+            credits: course.credits || 3
         };
 
-            const courseDoc = await db.collection('courses').doc(courseId).get();
-            if (courseDoc.exists) {
-                const course = courseDoc.data();
-                data.courseCode = course.code || '';
-                data.courseName = course.name || '';
-                data.credits = course.credits || 3;
-            }
-        
         if (existing.empty) {
-            await db.collection('grades').add({...data, examScore: 0, caScore: 0, status: 'draft'});
+            await db.collection('grades').add({ ...data, examScore: data.examScore ?? 0, caScore: data.caScore ?? 0, status: 'draft' });
         } else {
             await existing.docs[0].ref.update(data);
         }
@@ -515,6 +577,10 @@ async function publishGrades(courseId) {
     if (!confirm('Publish all grades? Students will be able to see them.')) return;
     
     const gradesSnapshot = await db.collection('grades').where('courseId', '==', courseId).get();
+    if (gradesSnapshot.empty) {
+        showNotification('No grades have been entered for this course.', 'warning');
+        return;
+    }
     
     for (const doc of gradesSnapshot.docs) {
         const grade = doc.data();
@@ -555,7 +621,7 @@ async function loadAttendancePage(container) {
                         return `<option value="${doc.id}">${c.code} - ${c.name}</option>`;
                     }).join('')}
                 </select>
-                <input type="date" id="attendanceDate" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+                <input type="date" id="attendanceDate" class="form-input" onchange="loadAttendanceSheet()" value="${new Date().toISOString().split('T')[0]}">
             </div>
         </div>
         <div id="attendanceArea">
@@ -617,18 +683,20 @@ async function loadAttendanceSheet() {
 
 async function saveAttendance(courseId, date) {
     const statuses = document.querySelectorAll('.attendance-status');
+    const batch = db.batch();
     let saved = 0;
     
     for (const select of statuses) {
         const studentId = select.getAttribute('data-student-id');
-        await db.collection('attendance').add({
+        const attendanceRef = db.collection('attendance').doc(`${courseId}_${studentId}_${date}`);
+        batch.set(attendanceRef, {
             studentId, courseId, date,
             status: select.value,
             markedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         saved++;
     }
-    
+    await batch.commit();
     showNotification(`Attendance saved for ${saved} students!`, 'success');
 }
 
@@ -874,8 +942,10 @@ async function loadLecturerAnnouncements(container) {
     // Get existing announcements
     const announcementsSnapshot = await db.collection('announcements')
         .where('postedBy', '==', userId)
-        .orderBy('createdAt', 'desc')
         .get();
+    const announcements = announcementsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
     
     container.innerHTML = `
         <div class="page-header">
@@ -933,9 +1003,8 @@ async function loadLecturerAnnouncements(container) {
         <div class="section">
             <h2>My Announcements</h2>
             <div class="announcements-list">
-                ${announcementsSnapshot.docs.length > 0 ? 
-                    announcementsSnapshot.docs.map(doc => {
-                        const a = doc.data();
+                ${announcements.length > 0 ? 
+                    announcements.map(a => {
                         return `
                             <div class="announcement-card">
                                 <div class="announcement-icon">
@@ -943,21 +1012,21 @@ async function loadLecturerAnnouncements(container) {
                                 </div>
                                 <div class="announcement-body">
                                     <div class="announcement-header">
-                                        <h3>${a.title}</h3>
+                                        <h3>${escapeHtml(a.title || 'Announcement')}</h3>
                                         <span class="badge badge-${a.category === 'urgent' ? 'danger' : a.category === 'academic' ? 'primary' : 'warning'}">
-                                            ${a.category}
+                                            ${escapeHtml(a.category || 'general')}
                                         </span>
                                     </div>
-                                    <p class="announcement-message">${a.message}</p>
+                                    <p class="announcement-message">${escapeHtml(a.message || '')}</p>
                                     <div class="announcement-meta">
                                         <span><i class="fas fa-clock"></i> ${formatDateTime(a.createdAt?.toDate())}</span>
-                                        <span><i class="fas fa-users"></i> ${a.targetCourse || 'All Students'}</span>
+                                        <span><i class="fas fa-users"></i> ${escapeHtml(a.targetCourse || 'All Students')}</span>
                                     </div>
                                     <div style="margin-top: 10px;">
-                                        <button class="btn btn-sm btn-outline" onclick="editAnnouncement('${doc.id}')">
+                                        <button class="btn btn-sm btn-outline" onclick="editAnnouncement('${a.id}')">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('${doc.id}')">
+                                        <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('${a.id}')">
                                             <i class="fas fa-trash"></i> Delete
                                         </button>
                                     </div>
@@ -1021,7 +1090,7 @@ function setupAnnouncementForm() {
                 category,
                 message,
                 targetCourse: courseId,
-                postedBy: localStorage.getItem('userId'),
+                postedBy: auth.currentUser?.uid,
                 postedByName: localStorage.getItem('userName'),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 notificationSent: sendNotification
@@ -1128,8 +1197,10 @@ async function loadCourseMaterials(container) {
     // Get existing materials
     const materialsSnapshot = await db.collection('materials')
         .where('uploadedBy', '==', userId)
-        .orderBy('uploadedAt', 'desc')
         .get();
+    const materials = materialsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => (b.uploadedAt?.toMillis?.() || 0) - (a.uploadedAt?.toMillis?.() || 0));
     
     container.innerHTML = `
         <div class="page-header">
@@ -1212,22 +1283,21 @@ async function loadCourseMaterials(container) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${materialsSnapshot.docs.length > 0 ?
-                            materialsSnapshot.docs.map(doc => {
-                                const m = doc.data();
+                        ${materials.length > 0 ?
+                            materials.map(m => {
                                 return `
                                     <tr>
-                                        <td><strong>${m.title}</strong></td>
-                                        <td>${m.courseName || 'N/A'}</td>
-                                        <td><span class="badge badge-primary">${m.type}</span></td>
-                                        <td>${m.fileName || 'N/A'}</td>
-                                        <td>${formatDate(m.uploadedAt?.toDate())}</td>
+                                        <td><strong>${escapeHtml(m.title || 'Untitled material')}</strong></td>
+                                        <td>${escapeHtml(m.courseName || 'N/A')}</td>
+                                        <td><span class="badge badge-primary">${escapeHtml(m.type || 'other')}</span></td>
+                                        <td>${escapeHtml(m.fileName || 'N/A')}</td>
+                                        <td>${formatDate(m.uploadedAt)}</td>
                                         <td>${m.downloads || 0}</td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline" onclick="downloadMaterial('${doc.id}')">
+                                            <button class="btn btn-sm btn-outline" onclick="downloadMaterial('${m.id}')">
                                                 <i class="fas fa-download"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${doc.id}')">
+                                            <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${m.id}')">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </td>
@@ -1274,12 +1344,25 @@ function setupMaterialForm() {
         }
         
         try {
+            if (!storage) {
+                showNotification('File storage is unavailable. Reload the dashboard and try again.', 'error');
+                return;
+            }
+            if (file.size > 25 * 1024 * 1024) {
+                showNotification('Materials must be 25 MB or smaller.', 'warning');
+                return;
+            }
             // Get course name
             const courseDoc = await db.collection('courses').doc(courseId).get();
             const courseName = courseDoc.exists ? `${courseDoc.data().code} - ${courseDoc.data().name}` : 'Unknown';
+            const materialId = db.collection('materials').doc().id;
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const fileRef = storage.ref().child(`materials/${auth.currentUser.uid}/${materialId}/${safeName}`);
+            await fileRef.put(file);
+            const downloadUrl = await fileRef.getDownloadURL();
             
             // Create material record
-            await db.collection('materials').add({
+            await db.collection('materials').doc(materialId).set({
                 courseId,
                 courseName,
                 type,
@@ -1287,10 +1370,12 @@ function setupMaterialForm() {
                 description,
                 fileName: file.name,
                 fileSize: file.size,
-                uploadedBy: localStorage.getItem('userId'),
+                uploadedBy: auth.currentUser.uid,
                 uploadedByName: localStorage.getItem('userName'),
                 uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                downloads: 0
+                downloads: 0,
+                storagePath: fileRef.fullPath,
+                downloadUrl
             });
             
             showNotification('Material uploaded successfully!', 'success');
@@ -1307,13 +1392,18 @@ function setupMaterialForm() {
 // Download material
 async function downloadMaterial(materialId) {
     try {
+        const materialDoc = await db.collection('materials').doc(materialId).get();
+        if (!materialDoc.exists || !materialDoc.data().downloadUrl) {
+            showNotification('This material has no downloadable file.', 'warning');
+            return;
+        }
         // Increment download count
         await db.collection('materials').doc(materialId).update({
             downloads: firebase.firestore.FieldValue.increment(1)
         });
         
+        window.open(materialDoc.data().downloadUrl, '_blank', 'noopener');
         showNotification('Download started!', 'success');
-        // In a real app, you'd get the download URL from Firebase Storage
     } catch (error) {
         showNotification('Error downloading material', 'error');
     }
