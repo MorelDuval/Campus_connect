@@ -1,0 +1,68 @@
+[debug] [2026-07-31T15:46:13.284Z] ----------------------------------------------------------------------
+[debug] [2026-07-31T15:46:13.297Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\SOP TECH\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2026-07-31T15:46:13.298Z] CLI Version:   15.25.1
+[debug] [2026-07-31T15:46:13.298Z] Platform:      win32
+[debug] [2026-07-31T15:46:13.299Z] Node Version:  v24.16.0
+[debug] [2026-07-31T15:46:13.299Z] Detected Agent: unknown
+[debug] [2026-07-31T15:46:13.300Z] Time:          Fri Jul 31 2026 16:46:13 GMT+0100 (West Africa Time)
+[debug] [2026-07-31T15:46:13.300Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Users\SOP TECH\Desktop\campus_connect\WEB APPLICATION
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-07-31T15:47:27.413Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-31T15:47:27.414Z] > authorizing via signed-in user (duvalmorel5@gmail.com)
+[debug] [2026-07-31T15:47:27.456Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:27.456Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:27.459Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=100
+[debug] [2026-07-31T15:47:28.456Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-07-31T15:47:28.457Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] 
+=== Dataconnect Setup
+[info] i  dataconnect: ensuring required API firebasedataconnect.googleapis.com is enabled... 
+[debug] [2026-07-31T15:47:31.292Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:31.293Z] Checked if tokens are valid: true, expires at: 1785516343360
+[info] i  dataconnect: ensuring required API sqladmin.googleapis.com is enabled... 
+[debug] [2026-07-31T15:47:31.297Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:31.298Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:31.306Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com [none]
+[debug] [2026-07-31T15:47:31.308Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com  x-goog-user-project=campus-connect-7f6db
+[debug] [2026-07-31T15:47:31.314Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com [none]
+[debug] [2026-07-31T15:47:31.314Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com  x-goog-user-project=campus-connect-7f6db
+[debug] [2026-07-31T15:47:32.738Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com 200
+[debug] [2026-07-31T15:47:32.739Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com [omitted]
+[warn] !  dataconnect: missing required API sqladmin.googleapis.com. Enabling now... 
+[debug] [2026-07-31T15:47:32.741Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:32.741Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:32.742Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com:enable [none]
+[debug] [2026-07-31T15:47:32.743Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com:enable  x-goog-user-project=campus-connect-7f6db
+[debug] [2026-07-31T15:47:33.071Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com 200
+[debug] [2026-07-31T15:47:33.072Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com [omitted]
+[warn] !  dataconnect: missing required API firebasedataconnect.googleapis.com. Enabling now... 
+[debug] [2026-07-31T15:47:33.105Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:33.106Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:33.106Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com:enable [none]
+[debug] [2026-07-31T15:47:33.107Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com:enable  x-goog-user-project=campus-connect-7f6db
+[debug] [2026-07-31T15:47:33.619Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com:enable 200
+[debug] [2026-07-31T15:47:33.620Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/sqladmin.googleapis.com:enable [omitted]
+[debug] [2026-07-31T15:47:34.888Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com:enable 200
+[debug] [2026-07-31T15:47:34.889Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1/projects/campus-connect-7f6db/services/firebasedataconnect.googleapis.com:enable [omitted]
+[debug] [2026-07-31T15:47:44.919Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:44.920Z] Checked if tokens are valid: true, expires at: 1785516343360
+[debug] [2026-07-31T15:47:44.920Z] >>> [apiv2][query] GET https://firebasedataconnect.googleapis.com/v1/projects/campus-connect-7f6db/locations/-/services [none]
+[debug] [2026-07-31T15:47:46.585Z] <<< [apiv2][status] GET https://firebasedataconnect.googleapis.com/v1/projects/campus-connect-7f6db/locations/-/services 200
+[debug] [2026-07-31T15:47:46.586Z] <<< [apiv2][body] GET https://firebasedataconnect.googleapis.com/v1/projects/campus-connect-7f6db/locations/-/services {}
