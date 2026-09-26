@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /assignments/{studentId}/{assignmentId}/{fileName} {
+      allow write: if request.auth != null
+        && request.auth.uid == studentId
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/zip');
+      allow read: if request.auth != null && (
+        request.auth.uid == studentId ||
+        firestore.get(/databases/(default)/documents/assignments/$(assignmentId)).data.lecturerId == request.auth.uid ||
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+  }
+}

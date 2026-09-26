@@ -1,0 +1,11 @@
+# Dependencies and generated bundles
+node_modules/
+mobileapplication/CampusConnectMobile/dist/
+mobileapplication/CampusConnectMobile/.expo/
+
+# Local Firebase and environment output
+**/firebase-debug.log
+.firebase/
+
+# Temporary comparison checkout
+.github-source/
